@@ -60,32 +60,214 @@ header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdro
 
 <footer><div class="container">© 2026 SULIT SPOTTER • We find it. We check it. You BUY it!</div></footer>
 
-<script>
-const defaultProducts = [
-{name:"Cotton Cloud 3in1 Terno Pajama Set",price:269,rating:4.9,reviews:"10K+ sold",cat:"fashion",emoji:"👚",badge:"HIGHLY RATED",score:"9.5/10",url:"#"},
-{name:"Minimalist Everyday Tote Bag",price:129,rating:4.8,reviews:"8.2K",cat:"fashion",emoji:"👜",badge:"SULIT PICK",score:"9.3/10",url:"#"},
-{name:"Compact Cable Organizer",price:59,rating:4.9,reviews:"12K",cat:"home",emoji:"🔌",badge:"UNDER ₱100",score:"9.2/10",url:"#"},
-{name:"Kitchen Storage Container Set",price:189,rating:4.8,reviews:"6.4K",cat:"home",emoji:"🍱",badge:"BEST VALUE",score:"9.1/10",url:"#"},
-{name:"Cute Daily Hair Claw Clips",price:49,rating:4.9,reviews:"15K",cat:"fashion",emoji:"🎀",badge:"UNDER ₱100",score:"9.3/10",url:"#"},
-{name:"Reusable Water Bottle",price:149,rating:4.7,reviews:"5.1K",cat:"home",emoji:"🥤",badge:"HIGHLY RATED",score:"8.9/10",url:"#"},
-{name:"Mini Desk Fan",price:299,rating:4.8,reviews:"9.7K",cat:"home",emoji:"🌀",badge:"SULIT PICK",score:"9.0/10",url:"#"},
-{name:"Simple Crossbody Bag",price:229,rating:4.8,reviews:"7.3K",cat:"fashion",emoji:"👜",badge:"HIDDEN GEM",score:"9.0/10",url:"#"},
-{name:"Foldable Storage Basket",price:99,rating:4.9,reviews:"11K",cat:"home",emoji:"🧺",badge:"UNDER ₱100",score:"9.4/10",url:"#"}
-];
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-let savedProducts = JSON.parse(localStorage.getItem("sulitSpotterProducts") || "null");
-let products = savedProducts || defaultProducts;
+<script>
+/* =========================================================
+   SULIT SPOTTER — SUPABASE PRODUCT SYSTEM
+   ========================================================= */
+
+const SUPABASE_URL = "https://tvligrckqremcdxiunog.supabase.co";
+
+/*
+  IMPORTANT:
+  Paste your SUPABASE PUBLISHABLE KEY below.
+  DO NOT paste your SECRET KEY.
+*/
+const SUPABASE_PUBLISHABLE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+
+const ADMIN_UID = "1c25954b-b38d-4ecd-a7db-709b6db64de2";
+const IMAGE_BUCKET = "product-images";
+
+const sb = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
+/* ---------------------------------------------------------
+   BASIC VARIABLES
+--------------------------------------------------------- */
 
 const root = document.getElementById("products");
+const searchInput = document.getElementById("search");
 
-/* ADD PRODUCT BUTTON */
-const addButton = document.createElement("button");
-addButton.textContent = "➕ ADD PRODUCT";
-addButton.style.cssText = `
+let products = [];
+let editingProduct = null;
+let currentFilter = "all";
+let currentSearch = "";
+let isAdmin = false;
+
+/* ---------------------------------------------------------
+   DEFAULT DEMO PRODUCTS
+   These appear only when your Supabase table is empty.
+--------------------------------------------------------- */
+
+const defaultProducts = [
+  {
+    name:"Cotton Cloud 3in1 Terno Pajama Set",
+    price:269,
+    rating:4.9,
+    reviews:"10K+ sold",
+    cat:"fashion",
+    emoji:"👚",
+    badge:"HIGHLY RATED",
+    url:"#"
+  },
+  {
+    name:"Minimalist Everyday Tote Bag",
+    price:129,
+    rating:4.8,
+    reviews:"8.2K",
+    cat:"fashion",
+    emoji:"👜",
+    badge:"SULIT PICK",
+    url:"#"
+  },
+  {
+    name:"Compact Cable Organizer",
+    price:59,
+    rating:4.9,
+    reviews:"12K",
+    cat:"home",
+    emoji:"🔌",
+    badge:"UNDER ₱100",
+    url:"#"
+  },
+  {
+    name:"Kitchen Storage Container Set",
+    price:189,
+    rating:4.8,
+    reviews:"6.4K",
+    cat:"home",
+    emoji:"🍱",
+    badge:"BEST VALUE",
+    url:"#"
+  },
+  {
+    name:"Cute Daily Hair Claw Clips",
+    price:49,
+    rating:4.9,
+    reviews:"15K",
+    cat:"fashion",
+    emoji:"🎀",
+    badge:"UNDER ₱100",
+    url:"#"
+  },
+  {
+    name:"Reusable Water Bottle",
+    price:149,
+    rating:4.7,
+    reviews:"5.1K",
+    cat:"home",
+    emoji:"🥤",
+    badge:"HIGHLY RATED",
+    url:"#"
+  },
+  {
+    name:"Mini Desk Fan",
+    price:299,
+    rating:4.8,
+    reviews:"9.7K",
+    cat:"home",
+    emoji:"🌀",
+    badge:"SULIT PICK",
+    url:"#"
+  },
+  {
+    name:"Simple Crossbody Bag",
+    price:229,
+    rating:4.8,
+    reviews:"7.3K",
+    cat:"fashion",
+    emoji:"👜",
+    badge:"HIDDEN GEM",
+    url:"#"
+  },
+  {
+    name:"Foldable Storage Basket",
+    price:99,
+    rating:4.9,
+    reviews:"11K",
+    cat:"home",
+    emoji:"🧺",
+    badge:"UNDER ₱100",
+    url:"#"
+  }
+];
+
+/* ---------------------------------------------------------
+   SECURITY / HTML HELPERS
+--------------------------------------------------------- */
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function safeUrl(url) {
+  if (!url) return "#";
+
+  try {
+    const u = new URL(url, window.location.href);
+
+    if (
+      u.protocol === "http:" ||
+      u.protocol === "https:" ||
+      u.protocol === "mailto:"
+    ) {
+      return u.href;
+    }
+
+    return "#";
+  } catch {
+    return "#";
+  }
+}
+
+/* ---------------------------------------------------------
+   ADMIN BUTTON
+--------------------------------------------------------- */
+
+const adminButton = document.createElement("button");
+
+adminButton.textContent = "🔐 ADMIN LOGIN";
+
+adminButton.style.cssText = `
 position:fixed;
 right:20px;
 bottom:20px;
-z-index:9999;
+z-index:9998;
+background:#211b2d;
+color:white;
+border:0;
+padding:13px 18px;
+border-radius:12px;
+font-weight:800;
+font-size:13px;
+cursor:pointer;
+box-shadow:0 6px 20px rgba(0,0,0,.25);
+`;
+
+document.body.appendChild(adminButton);
+
+/* ---------------------------------------------------------
+   PRODUCT ADD BUTTON
+--------------------------------------------------------- */
+
+const addButton = document.createElement("button");
+
+addButton.textContent = "➕ ADD PRODUCT";
+
+addButton.style.cssText = `
+display:none;
+position:fixed;
+right:20px;
+bottom:72px;
+z-index:9998;
 background:#7c3aed;
 color:white;
 border:0;
@@ -96,10 +278,104 @@ font-size:15px;
 cursor:pointer;
 box-shadow:0 6px 20px rgba(0,0,0,.25);
 `;
+
 document.body.appendChild(addButton);
 
-/* PRODUCT FORM */
+/* ---------------------------------------------------------
+   LOGIN MODAL
+--------------------------------------------------------- */
+
+const loginModal = document.createElement("div");
+
+loginModal.style.cssText = `
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.65);
+z-index:10001;
+align-items:center;
+justify-content:center;
+padding:20px;
+`;
+
+loginModal.innerHTML = `
+<div style="
+background:white;
+width:min(420px,100%);
+border-radius:18px;
+padding:25px;
+box-shadow:0 20px 50px rgba(0,0,0,.35);
+font-family:Arial,sans-serif;
+">
+
+<h2 style="margin-top:0;">🔐 Admin Login</h2>
+
+<p style="color:#666;font-size:13px;">
+Login to manage SULIT SPOTTER products.
+</p>
+
+<label>Email</label>
+<input id="adminEmail"
+type="email"
+placeholder="Your admin email"
+style="
+width:100%;
+padding:12px;
+margin:6px 0 14px;
+box-sizing:border-box;
+">
+
+<label>Password</label>
+<input id="adminPassword"
+type="password"
+placeholder="Your password"
+style="
+width:100%;
+padding:12px;
+margin:6px 0 20px;
+box-sizing:border-box;
+">
+
+<div style="display:flex;gap:10px;">
+
+<button id="loginSubmit"
+style="
+flex:1;
+padding:13px;
+border:0;
+border-radius:10px;
+background:#7c3aed;
+color:white;
+font-weight:bold;
+cursor:pointer;
+">
+LOGIN
+</button>
+
+<button id="loginCancel"
+style="
+padding:13px 18px;
+border:0;
+border-radius:10px;
+background:#ddd;
+cursor:pointer;
+">
+CANCEL
+</button>
+
+</div>
+
+</div>
+`;
+
+document.body.appendChild(loginModal);
+
+/* ---------------------------------------------------------
+   PRODUCT MODAL
+--------------------------------------------------------- */
+
 const modal = document.createElement("div");
+
 modal.style.cssText = `
 display:none;
 position:fixed;
@@ -122,41 +398,66 @@ padding:24px;
 box-shadow:0 20px 50px rgba(0,0,0,.35);
 font-family:Arial,sans-serif;
 ">
-<h2 id="formTitle" style="margin-top:0;">➕ Add Product</h2>
+
+<h2 id="formTitle" style="margin-top:0;">
+➕ Add Product
+</h2>
 
 <label>Product Name</label>
-<input id="pName" type="text" placeholder="Example: Cute Tote Bag"
+<input id="pName"
+type="text"
+placeholder="Example: Cute Tote Bag"
 style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
 
 <label>Price</label>
-<input id="pPrice" type="number" placeholder="299"
+<input id="pPrice"
+type="number"
+placeholder="299"
 style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
 
 <label>Category</label>
 <select id="pCat"
 style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
+
 <option value="fashion">Fashion</option>
 <option value="home">Home</option>
 <option value="beauty">Beauty</option>
 <option value="gadgets">Gadgets</option>
 <option value="kids">Kids</option>
 <option value="others">Others</option>
+
 </select>
 
 <label>Description</label>
-<textarea id="pDesc" rows="4" placeholder="Short product description..."
-style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;"></textarea>
+<textarea
+id="pDesc"
+rows="4"
+placeholder="Short product description..."
+style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;"
+></textarea>
 
 <label>Product Image</label>
-<input id="pImage" type="file" accept="image/*"
-style="width:100%;margin:8px 0 14px;">
+
+<input
+id="pImage"
+type="file"
+accept="image/*"
+style="width:100%;margin:8px 0 14px;"
+>
 
 <label>Product / Shopee Link</label>
-<input id="pUrl" type="url" placeholder="https://..."
-style="width:100%;padding:12px;margin:6px 0 20px;box-sizing:border-box;">
+
+<input
+id="pUrl"
+type="url"
+placeholder="https://..."
+style="width:100%;padding:12px;margin:6px 0 20px;box-sizing:border-box;"
+>
 
 <div style="display:flex;gap:10px;">
-<button id="saveProduct" style="
+
+<button id="saveProduct"
+style="
 flex:1;
 padding:13px;
 border:0;
@@ -164,279 +465,908 @@ border-radius:10px;
 background:#7c3aed;
 color:white;
 font-weight:bold;
-cursor:pointer;">
+cursor:pointer;
+">
 SAVE PRODUCT
 </button>
 
-<button id="cancelProduct" style="
+<button id="cancelProduct"
+style="
 padding:13px 18px;
 border:0;
 border-radius:10px;
 background:#ddd;
-cursor:pointer;">
+cursor:pointer;
+">
 CANCEL
 </button>
+
 </div>
+
 </div>
 `;
 
 document.body.appendChild(modal);
 
-let editingIndex = null;
+/* ---------------------------------------------------------
+   LOGIN FUNCTIONS
+--------------------------------------------------------- */
 
-function saveProducts(){
-localStorage.setItem(
-"sulitSpotterProducts",
-JSON.stringify(products)
-);
+function openLogin() {
+  loginModal.style.display = "flex";
+  document.getElementById("adminEmail").focus();
 }
 
-function openForm(index=null){
-
-editingIndex = index;
-
-document.getElementById("formTitle").textContent =
-index === null ? "➕ Add Product" : "✏️ Edit Product";
-
-if(index !== null){
-const p = products[index];
-
-document.getElementById("pName").value = p.name || "";
-document.getElementById("pPrice").value = p.price || "";
-document.getElementById("pCat").value = p.cat || "others";
-document.getElementById("pDesc").value = p.description || "";
-document.getElementById("pUrl").value = p.url || "";
-}else{
-document.getElementById("pName").value = "";
-document.getElementById("pPrice").value = "";
-document.getElementById("pCat").value = "fashion";
-document.getElementById("pDesc").value = "";
-document.getElementById("pUrl").value = "";
-document.getElementById("pImage").value = "";
+function closeLogin() {
+  loginModal.style.display = "none";
 }
 
-modal.style.display = "flex";
+async function loginAdmin() {
+
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+
+  if (!email || !password) {
+    alert("Please enter your email and password.");
+    return;
+  }
+
+  const button = document.getElementById("loginSubmit");
+
+  button.disabled = true;
+  button.textContent = "LOGGING IN...";
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  button.disabled = false;
+  button.textContent = "LOGIN";
+
+  if (error) {
+    alert("❌ Login failed: " + error.message);
+    return;
+  }
+
+  if (!data.user || data.user.id !== ADMIN_UID) {
+
+    await sb.auth.signOut();
+
+    alert("❌ This account is not authorized as SULIT SPOTTER Admin.");
+    return;
+  }
+
+  closeLogin();
+
+  alert("✅ Welcome, Admin!");
+
+  await checkAdmin();
+  await loadProducts();
 }
 
-function closeForm(){
-modal.style.display = "none";
-editingIndex = null;
+async function logoutAdmin() {
+
+  await sb.auth.signOut();
+
+  isAdmin = false;
+
+  updateAdminUI();
+
+  alert("👋 Admin logged out.");
+
+  await loadProducts();
+}
+
+document.getElementById("loginSubmit").onclick = loginAdmin;
+
+document.getElementById("loginCancel").onclick = closeLogin;
+
+adminButton.onclick = async () => {
+
+  if (isAdmin) {
+    await logoutAdmin();
+  } else {
+    openLogin();
+  }
+
+};
+
+/* ---------------------------------------------------------
+   CHECK ADMIN
+--------------------------------------------------------- */
+
+async function checkAdmin() {
+
+  const { data } = await sb.auth.getSession();
+
+  const user = data?.session?.user;
+
+  isAdmin = !!user && user.id === ADMIN_UID;
+
+  updateAdminUI();
+}
+
+function updateAdminUI() {
+
+  if (isAdmin) {
+
+    adminButton.textContent = "🚪 LOGOUT ADMIN";
+
+    adminButton.style.background = "#198754";
+
+    addButton.style.display = "block";
+
+  } else {
+
+    adminButton.textContent = "🔐 ADMIN LOGIN";
+
+    adminButton.style.background = "#211b2d";
+
+    addButton.style.display = "none";
+
+  }
+}
+
+/* ---------------------------------------------------------
+   LOAD PRODUCTS FROM SUPABASE
+--------------------------------------------------------- */
+
+async function loadProducts() {
+
+  root.innerHTML = `
+    <div style="
+      grid-column:1/-1;
+      text-align:center;
+      padding:40px;
+      color:#777;
+    ">
+      🔄 Loading Sulit Finds...
+    </div>
+  `;
+
+  const { data, error } = await sb
+    .from("products")
+    .select("*")
+    .eq("published", true)
+    .order("created_at", { ascending:false });
+
+  if (error) {
+
+    console.error(error);
+
+    root.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:40px;
+        color:#c00;
+      ">
+        ❌ Unable to load products.
+        <br><small>${escapeHtml(error.message)}</small>
+      </div>
+    `;
+
+    return;
+  }
+
+  /*
+    If the database is empty, show the original demo products.
+  */
+  products = data && data.length
+    ? data
+    : defaultProducts;
+
+  renderFiltered();
+}
+
+/* ---------------------------------------------------------
+   IMAGE UPLOAD
+--------------------------------------------------------- */
+
+async function uploadProductImage(file) {
+
+  if (!file) return null;
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please select an image file.");
+  }
+
+  const extension =
+    file.name.split(".").pop().toLowerCase() || "jpg";
+
+  const safeName =
+    file.name
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9-_]/g, "-")
+      .substring(0,60);
+
+  const path =
+    "products/" +
+    crypto.randomUUID() +
+    "-" +
+    safeName +
+    "." +
+    extension;
+
+  const { error } = await sb.storage
+    .from(IMAGE_BUCKET)
+    .upload(path, file, {
+      upsert:false,
+      contentType:file.type
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data } = sb.storage
+    .from(IMAGE_BUCKET)
+    .getPublicUrl(path);
+
+  return data.publicUrl;
+}
+
+/* ---------------------------------------------------------
+   DELETE OLD IMAGE
+--------------------------------------------------------- */
+
+async function deleteStorageImage(publicUrl) {
+
+  if (!publicUrl) return;
+
+  try {
+
+    const marker = "/storage/v1/object/public/" + IMAGE_BUCKET + "/";
+
+    const position = publicUrl.indexOf(marker);
+
+    if (position === -1) return;
+
+    const path = decodeURIComponent(
+      publicUrl.substring(position + marker.length)
+    );
+
+    await sb.storage
+      .from(IMAGE_BUCKET)
+      .remove([path]);
+
+  } catch (error) {
+
+    console.warn("Old image could not be deleted:", error);
+
+  }
+}
+
+/* ---------------------------------------------------------
+   PRODUCT FORM
+--------------------------------------------------------- */
+
+function openForm(product = null) {
+
+  if (!isAdmin) {
+    alert("Please login as Admin first.");
+    return;
+  }
+
+  editingProduct = product;
+
+  document.getElementById("formTitle").textContent =
+    product ? "✏️ Edit Product" : "➕ Add Product";
+
+  document.getElementById("pName").value =
+    product?.name || "";
+
+  document.getElementById("pPrice").value =
+    product?.price || "";
+
+  document.getElementById("pCat").value =
+    product?.category || product?.cat || "fashion";
+
+  document.getElementById("pDesc").value =
+    product?.description || "";
+
+  document.getElementById("pUrl").value =
+    product?.product_url || product?.url || "";
+
+  document.getElementById("pImage").value = "";
+
+  modal.style.display = "flex";
+}
+
+function closeForm() {
+
+  modal.style.display = "none";
+
+  editingProduct = null;
+
 }
 
 addButton.onclick = () => openForm();
 
-document.getElementById("cancelProduct").onclick = closeForm;
+/* ---------------------------------------------------------
+   SAVE PRODUCT TO DATABASE
+--------------------------------------------------------- */
 
-document.getElementById("saveProduct").onclick = () => {
+document.getElementById("saveProduct").onclick =
+async function() {
 
-const name = document.getElementById("pName").value.trim();
-const price = Number(document.getElementById("pPrice").value);
-const cat = document.getElementById("pCat").value;
-const description = document.getElementById("pDesc").value.trim();
-const url = document.getElementById("pUrl").value.trim();
-const imageFile = document.getElementById("pImage").files[0];
+  if (!isAdmin) {
+    alert("Please login as Admin.");
+    return;
+  }
 
-if(!name || !price){
-alert("Please enter Product Name and Price.");
-return;
-}
+  const name =
+    document.getElementById("pName").value.trim();
 
-function finishSave(imageData){
+  const price =
+    Number(document.getElementById("pPrice").value);
 
-const productData = {
-name:name,
-price:price,
-rating:5,
-reviews:"New",
-cat:cat,
-emoji:"🛍️",
-badge:"NEW",
-score:"9.5/10",
-url:url || "#",
-description:description,
-image:imageData || (
-editingIndex !== null
-? products[editingIndex].image || ""
-: ""
-)
+  const category =
+    document.getElementById("pCat").value;
+
+  const description =
+    document.getElementById("pDesc").value.trim();
+
+  const product_url =
+    document.getElementById("pUrl").value.trim();
+
+  const imageFile =
+    document.getElementById("pImage").files[0];
+
+  if (!name || !price) {
+
+    alert("Please enter Product Name and Price.");
+
+    return;
+  }
+
+  const saveButton =
+    document.getElementById("saveProduct");
+
+  saveButton.disabled = true;
+  saveButton.textContent = "SAVING...";
+
+  try {
+
+    let image_url =
+      editingProduct?.image_url || null;
+
+    /* Upload new image if selected */
+    if (imageFile) {
+
+      image_url =
+        await uploadProductImage(imageFile);
+
+    }
+
+    const productData = {
+
+      name:name,
+
+      price:price,
+
+      category:category,
+
+      description:description,
+
+      image_url:image_url,
+
+      product_url:product_url,
+
+      published:true
+
+    };
+
+    /* EDIT */
+    if (editingProduct && editingProduct.id) {
+
+      const { error } = await sb
+        .from("products")
+        .update(productData)
+        .eq("id", editingProduct.id);
+
+      if (error) throw error;
+
+      /*
+        Delete old image only after successful update.
+      */
+      if (
+        imageFile &&
+        editingProduct.image_url &&
+        editingProduct.image_url !== image_url
+      ) {
+
+        await deleteStorageImage(
+          editingProduct.image_url
+        );
+
+      }
+
+      alert("✅ Product updated successfully!");
+
+    }
+
+    /* ADD */
+    else {
+
+      const { error } = await sb
+        .from("products")
+        .insert(productData);
+
+      if (error) {
+
+        /*
+          If database insert fails after image upload,
+          remove the newly uploaded image.
+        */
+        if (image_url) {
+          await deleteStorageImage(image_url);
+        }
+
+        throw error;
+      }
+
+      alert("🎉 Product added successfully!");
+
+    }
+
+    closeForm();
+
+    await loadProducts();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "❌ Unable to save product.\n\n" +
+      error.message
+    );
+
+  } finally {
+
+    saveButton.disabled = false;
+    saveButton.textContent = "SAVE PRODUCT";
+
+  }
+
 };
 
-if(editingIndex === null){
-products.unshift(productData);
-}else{
-products[editingIndex] = productData;
+document.getElementById("cancelProduct").onclick =
+closeForm;
+
+/* ---------------------------------------------------------
+   RENDER PRODUCTS
+--------------------------------------------------------- */
+
+function render(list) {
+
+  if (!list.length) {
+
+    root.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:45px;
+        color:#777;
+      ">
+        😔 No products found.
+      </div>
+    `;
+
+    return;
+  }
+
+  root.innerHTML = list.map(p => {
+
+    const isDatabaseProduct = !!p.id;
+
+    const image =
+      p.image_url || p.image || "";
+
+    const name =
+      p.name || "Sulit Find";
+
+    const category =
+      p.category || p.cat || "others";
+
+    const description =
+      p.description ||
+      "Sulit Spotter recommended product.";
+
+    const price =
+      Number(p.price || 0);
+
+    const rating =
+      p.rating || 5;
+
+    const reviews =
+      p.reviews || "New";
+
+    const badge =
+      p.badge || "SULIT PICK";
+
+    const url =
+      safeUrl(p.product_url || p.url);
+
+    return `
+      <article class="product">
+
+        <div class="ping">
+
+          ${
+            image
+
+            ?
+
+            `<img
+              src="${escapeHtml(image)}"
+              alt="${escapeHtml(name)}"
+              style="
+                width:100%;
+                height:190px;
+                object-fit:cover;
+                border-radius:12px;
+              "
+            >`
+
+            :
+
+            `<div style="
+              font-size:55px;
+              text-align:center;
+              padding:25px;
+            ">
+              ${escapeHtml(p.emoji || "🛍️")}
+            </div>`
+          }
+
+          <span class="badge">
+            ${escapeHtml(badge)}
+          </span>
+
+        </div>
+
+        <div style="padding:14px;">
+
+          <div style="
+            font-size:10px;
+            text-transform:uppercase;
+            letter-spacing:.8px;
+            color:#8c8398;
+            font-weight:900;
+          ">
+            ${escapeHtml(category)}
+          </div>
+
+          <h3>
+            ${escapeHtml(name)}
+          </h3>
+
+          <p style="
+            font-size:14px;
+            color:#666;
+          ">
+            ${escapeHtml(description)}
+          </p>
+
+          <div style="
+            font-size:20px;
+            font-weight:800;
+          ">
+            ₱${price.toLocaleString()}
+          </div>
+
+          <div style="margin:7px 0;">
+            ⭐ ${escapeHtml(rating)}
+            &nbsp; • &nbsp;
+            ${escapeHtml(reviews)}
+          </div>
+
+          <div style="
+            display:flex;
+            gap:7px;
+            margin-top:10px;
+          ">
+
+            <a
+              href="${escapeHtml(url)}"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="
+                flex:1;
+                text-align:center;
+                padding:9px;
+                border-radius:8px;
+                background:#111;
+                color:white;
+                text-decoration:none;
+              "
+            >
+              VIEW
+            </a>
+
+            ${
+              isAdmin && isDatabaseProduct
+
+              ?
+
+              `
+              <button
+                onclick="editProduct(${p.id})"
+                style="
+                  padding:9px 12px;
+                  border:0;
+                  border-radius:8px;
+                  cursor:pointer;
+                "
+              >
+                ✏️
+              </button>
+
+              <button
+                onclick="deleteProduct(${p.id})"
+                style="
+                  padding:9px 12px;
+                  border:0;
+                  border-radius:8px;
+                  background:#fee2e2;
+                  cursor:pointer;
+                "
+              >
+                🗑️
+              </button>
+              `
+
+              :
+
+              ""
+            }
+
+          </div>
+
+        </div>
+
+      </article>
+    `;
+
+  }).join("");
+
 }
 
-saveProducts();
-render(products);
-closeForm();
+/* ---------------------------------------------------------
+   FILTER + SEARCH
+--------------------------------------------------------- */
 
-alert("✅ Product saved successfully!");
+function renderFiltered() {
+
+  let list = [...products];
+
+  /* SEARCH */
+
+  if (currentSearch) {
+
+    const q = currentSearch.toLowerCase();
+
+    list = list.filter(p => {
+
+      const name =
+        (p.name || "").toLowerCase();
+
+      const description =
+        (p.description || "").toLowerCase();
+
+      return (
+        name.includes(q) ||
+        description.includes(q)
+      );
+
+    });
+
+  }
+
+  /* CATEGORY */
+
+  if (currentFilter === "under100") {
+
+    list = list.filter(
+      p => Number(p.price) < 100
+    );
+
+  }
+
+  else if (currentFilter === "under300") {
+
+    list = list.filter(
+      p => Number(p.price) < 300
+    );
+
+  }
+
+  else if (currentFilter === "rated") {
+
+    list = list.filter(
+      p => Number(p.rating || 5) >= 4.8
+    );
+
+  }
+
+  else if (
+    currentFilter === "fashion" ||
+    currentFilter === "home"
+  ) {
+
+    list = list.filter(
+      p =>
+        (p.category || p.cat) === currentFilter
+    );
+
+  }
+
+  render(list);
 
 }
 
-if(imageFile){
-
-const reader = new FileReader();
-
-reader.onload = function(e){
-finishSave(e.target.result);
-};
-
-reader.readAsDataURL(imageFile);
-
-}else{
-finishSave("");
-}
-
-};
-
-/* RENDER PRODUCTS */
-
-function render(list){
-
-root.innerHTML = list.map((p,index) => {
-
-const originalIndex = products.indexOf(p);
-
-return `
-<article class="product">
-
-<div class="ping">
-
-${p.image
-? `<img src="${p.image}" style="
-width:100%;
-height:190px;
-object-fit:cover;
-border-radius:12px;
-margin-bottom:10px;
-">`
-: `<div style="
-font-size:55px;
-text-align:center;
-padding:25px;
-">${p.emoji || "🛍️"}</div>`
-}
-
-<span class="badge">${p.badge || "SULIT PICK"}</span>
-
-</div>
-
-<h3>${p.name}</h3>
-
-<p style="font-size:14px;color:#666;">
-${p.description || "Sulit Spotter recommended product."}
-</p>
-
-<div style="font-size:20px;font-weight:800;">
-₱${Number(p.price).toLocaleString()}
-</div>
-
-<div style="margin:7px 0;">
-⭐ ${p.rating || 5}
-&nbsp; • &nbsp;
-${p.reviews || "New"}
-</div>
-
-<div style="display:flex;gap:7px;margin-top:10px;">
-
-<a href="${p.url || "#"}"
-target="_blank"
-style="
-flex:1;
-text-align:center;
-padding:9px;
-border-radius:8px;
-background:#111;
-color:white;
-text-decoration:none;
-">
-VIEW
-</a>
-
-<button onclick="editProduct(${originalIndex})"
-style="
-padding:9px 12px;
-border:0;
-border-radius:8px;
-cursor:pointer;
-">
-✏️
-</button>
-
-<button onclick="deleteProduct(${originalIndex})"
-style="
-padding:9px 12px;
-border:0;
-border-radius:8px;
-background:#fee2e2;
-cursor:pointer;
-">
-🗑️
-</button>
-
-</div>
-
-</article>
-`;
-
-}).join("");
-}
-
-function editProduct(index){
-openForm(index);
-}
-
-function deleteProduct(index){
-
-if(confirm("Delete this product?")){
-products.splice(index,1);
-saveProducts();
-render(products);
-}
-}
-
-/* CATEGORY FILTER */
+/* ---------------------------------------------------------
+   FILTER BUTTONS
+--------------------------------------------------------- */
 
 document.querySelectorAll(".filter").forEach(btn => {
 
-btn.onclick = () => {
+  btn.onclick = () => {
 
-document.querySelectorAll(".filter").forEach(x =>
-x.classList.remove("active")
+    document
+      .querySelectorAll(".filter")
+      .forEach(x =>
+        x.classList.remove("active")
+      );
+
+    btn.classList.add("active");
+
+    currentFilter =
+      btn.dataset.filter;
+
+    renderFiltered();
+
+  };
+
+});
+
+/* ---------------------------------------------------------
+   SEARCH
+--------------------------------------------------------- */
+
+searchInput.addEventListener(
+  "input",
+  e => {
+
+    currentSearch =
+      e.target.value.trim();
+
+    renderFiltered();
+
+  }
 );
 
-btn.classList.add("active");
+/* ---------------------------------------------------------
+   EDIT PRODUCT
+--------------------------------------------------------- */
 
-const filter = btn.dataset.filter;
+window.editProduct = async function(id) {
 
-if(filter === "all"){
-render(products);
-}else{
-render(products.filter(p => p.cat === filter));
-}
+  if (!isAdmin) {
+
+    alert("Please login as Admin.");
+
+    return;
+
+  }
+
+  const product =
+    products.find(p =>
+      String(p.id) === String(id)
+    );
+
+  if (!product) {
+
+    alert("Product not found.");
+
+    return;
+
+  }
+
+  openForm(product);
 
 };
 
-});
+/* ---------------------------------------------------------
+   DELETE PRODUCT
+--------------------------------------------------------- */
 
-/* SEARCH */
+window.deleteProduct = async function(id) {
 
-document.getElementById("search").addEventListener("input", e => {
+  if (!isAdmin) {
 
-const q = e.target.value.toLowerCase();
+    alert("Please login as Admin.");
 
-render(
-products.filter(p =>
-(p.name || "").toLowerCase().includes(q) ||
-(p.description || "").toLowerCase().includes(q)
-)
+    return;
+
+  }
+
+  const product =
+    products.find(p =>
+      String(p.id) === String(id)
+    );
+
+  if (!product) return;
+
+  const confirmed =
+    confirm(
+      "Are you sure you want to delete this product?"
+    );
+
+  if (!confirmed) return;
+
+  const { error } = await sb
+    .from("products")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+
+    alert(
+      "❌ Unable to delete product.\n\n" +
+      error.message
+    );
+
+    return;
+  }
+
+  if (product.image_url) {
+
+    await deleteStorageImage(
+      product.image_url
+    );
+
+  }
+
+  alert("🗑️ Product deleted.");
+
+  await loadProducts();
+
+};
+
+/* ---------------------------------------------------------
+   AUTH STATE
+--------------------------------------------------------- */
+
+sb.auth.onAuthStateChange(
+  async (event, session) => {
+
+    const user = session?.user;
+
+    isAdmin =
+      !!user &&
+      user.id === ADMIN_UID;
+
+    updateAdminUI();
+
+  }
 );
 
-});
+/* ---------------------------------------------------------
+   START APP
+--------------------------------------------------------- */
 
-render(products);
+(async function init() {
+
+  await checkAdmin();
+
+  await loadProducts();
+
+})();
+
 </script>
 </body>
 </html>
