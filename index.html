@@ -62,14 +62,23 @@ header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdro
 
 <script>
 const products=[
-{name:"Minimalist Everyday Tote Bag",price:129,rating:4.8,reviews:"8.2K",cat:"fashion",emoji:"👜",badge:"SULIT PICK",url:"#"},
-{name:"Compact Cable Organizer",price:59,rating:4.9,reviews:"12K",cat:"home",emoji:"🔌",badge:"UNDER ₱100",url:"#"},
-{name:"Kitchen Storage Container Set",price:189,rating:4.8,reviews:"6.4K",cat:"home",emoji:"🥣",badge:"BEST VALUE",url:"#"},
-{name:"Cute Daily Hair Claw Clips",price:49,rating:4.9,reviews:"15K",cat:"fashion",emoji:"🎀",badge:"UNDER ₱100",url:"#"},
-{name:"Reusable Water Bottle",price:149,rating:4.7,reviews:"5.1K",cat:"home",emoji:"🥤",badge:"HIGHLY RATED",url:"#"},
-{name:"Mini Desk Fan",price:299,rating:4.8,reviews:"9.7K",cat:"home",emoji:"🌀",badge:"SULIT PICK",url:"#"},
-{name:"Simple Crossbody Bag",price:229,rating:4.8,reviews:"7.3K",cat:"fashion",emoji:"👝",badge:"HIDDEN GEM",url:"#"},
-{name:"Foldable Storage Basket",price:99,rating:4.9,reviews:"11K",cat:"home",emoji:"🧺",badge:"UNDER ₱100",url:"#"}
+{name:"Cotton Cloud 3in1 Terno Pajama Set",price:269,rating:4.9,reviews:"10K+ sold",cat:"fashion",emoji:"👚",badge:"HIGHLY RATED",score:"9.5/10",url:"https://s.shopee.ph/40gMsxbs9b"},
+
+{name:"Minimalist Everyday Tote Bag",price:129,rating:4.8,reviews:"8.2K",cat:"fashion",emoji:"👜",badge:"SULIT PICK",score:"9.0/10",url:"#"},
+
+{name:"Compact Cable Organizer",price:59,rating:4.9,reviews:"12K",cat:"home",emoji:"🔌",badge:"UNDER ₱100",score:"9.2/10",url:"#"},
+
+{name:"Kitchen Storage Container Set",price:189,rating:4.8,reviews:"6.4K",cat:"home",emoji:"🍱",badge:"BEST VALUE",score:"9.1/10",url:"#"},
+
+{name:"Cute Daily Hair Claw Clips",price:49,rating:4.9,reviews:"15K",cat:"fashion",emoji:"🎀",badge:"UNDER ₱100",score:"9.3/10",url:"#"},
+
+{name:"Reusable Water Bottle",price:149,rating:4.7,reviews:"5.1K",cat:"home",emoji:"🧴",badge:"HIGHLY RATED",score:"8.9/10",url:"#"},
+
+{name:"Mini Desk Fan",price:299,rating:4.8,reviews:"9.7K",cat:"home",emoji:"🌀",badge:"SULIT PICK",score:"9.0/10",url:"#"},
+
+{name:"Simple Crossbody Bag",price:229,rating:4.8,reviews:"7.3K",cat:"fashion",emoji:"👜",badge:"HIDDEN GEM",score:"9.0/10",url:"#"},
+
+{name:"Foldable Storage Basket",price:99,rating:4.9,reviews:"11K",cat:"home",emoji:"🧺",badge:"UNDER ₱100",score:"9.4/10",url:"#"}
 ];
 const root=document.getElementById("products");
 function render(list){root.innerHTML=list.map(p=>`<article class="product"><div class="pimg"><span class="badge">${p.badge}</span><button class="heart" onclick="this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button><span>${p.emoji}</span></div><div class="pbody"><div class="cat">${p.cat}</div><h3>${p.name}</h3><div class="rating"><b>★</b> ${p.rating} · ${p.reviews} reviews</div><div class="pfoot"><span class="pprice">₱${p.price}</span><a class="buy" href="${p.url}" target="_blank" rel="nofollow sponsored noopener">CHECK PRICE</a></div></div></article>`).join("")}
