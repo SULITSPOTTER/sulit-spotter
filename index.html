@@ -61,30 +61,382 @@ header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdro
 <footer><div class="container">© 2026 SULIT SPOTTER • We find it. We check it. You BUY it!</div></footer>
 
 <script>
-const products=[
-{name:"Cotton Cloud 3in1 Terno Pajama Set",price:269,rating:4.9,reviews:"10K+ sold",cat:"fashion",emoji:"👚",badge:"HIGHLY RATED",score:"9.5/10",url:"https://s.shopee.ph/40gMsxbs9b"},
-
-{name:"Minimalist Everyday Tote Bag",price:129,rating:4.8,reviews:"8.2K",cat:"fashion",emoji:"👜",badge:"SULIT PICK",score:"9.0/10",url:"#"},
-
+const defaultProducts = [
+{name:"Cotton Cloud 3in1 Terno Pajama Set",price:269,rating:4.9,reviews:"10K+ sold",cat:"fashion",emoji:"👚",badge:"HIGHLY RATED",score:"9.5/10",url:"#"},
+{name:"Minimalist Everyday Tote Bag",price:129,rating:4.8,reviews:"8.2K",cat:"fashion",emoji:"👜",badge:"SULIT PICK",score:"9.3/10",url:"#"},
 {name:"Compact Cable Organizer",price:59,rating:4.9,reviews:"12K",cat:"home",emoji:"🔌",badge:"UNDER ₱100",score:"9.2/10",url:"#"},
-
 {name:"Kitchen Storage Container Set",price:189,rating:4.8,reviews:"6.4K",cat:"home",emoji:"🍱",badge:"BEST VALUE",score:"9.1/10",url:"#"},
-
 {name:"Cute Daily Hair Claw Clips",price:49,rating:4.9,reviews:"15K",cat:"fashion",emoji:"🎀",badge:"UNDER ₱100",score:"9.3/10",url:"#"},
-
-{name:"Reusable Water Bottle",price:149,rating:4.7,reviews:"5.1K",cat:"home",emoji:"🧴",badge:"HIGHLY RATED",score:"8.9/10",url:"#"},
-
+{name:"Reusable Water Bottle",price:149,rating:4.7,reviews:"5.1K",cat:"home",emoji:"🥤",badge:"HIGHLY RATED",score:"8.9/10",url:"#"},
 {name:"Mini Desk Fan",price:299,rating:4.8,reviews:"9.7K",cat:"home",emoji:"🌀",badge:"SULIT PICK",score:"9.0/10",url:"#"},
-
 {name:"Simple Crossbody Bag",price:229,rating:4.8,reviews:"7.3K",cat:"fashion",emoji:"👜",badge:"HIDDEN GEM",score:"9.0/10",url:"#"},
-
 {name:"Foldable Storage Basket",price:99,rating:4.9,reviews:"11K",cat:"home",emoji:"🧺",badge:"UNDER ₱100",score:"9.4/10",url:"#"}
 ];
-const root=document.getElementById("products");
-function render(list){root.innerHTML=list.map(p=>`<article class="product"><div class="pimg"><span class="badge">${p.badge}</span><button class="heart" onclick="this.textContent=this.textContent==='♡'?'♥':'♡'">♡</button><span>${p.emoji}</span></div><div class="pbody"><div class="cat">${p.cat}</div><h3>${p.name}</h3><div class="rating"><b>★</b> ${p.rating} · ${p.reviews} reviews</div><div class="pfoot"><span class="pprice">₱${p.price}</span><a class="buy" href="${p.url}" target="_blank" rel="nofollow sponsored noopener">CHECK PRICE</a></div></div></article>`).join("")}
+
+let savedProducts = JSON.parse(localStorage.getItem("sulitSpotterProducts") || "null");
+let products = savedProducts || defaultProducts;
+
+const root = document.getElementById("products");
+
+/* ADD PRODUCT BUTTON */
+const addButton = document.createElement("button");
+addButton.textContent = "➕ ADD PRODUCT";
+addButton.style.cssText = `
+position:fixed;
+right:20px;
+bottom:20px;
+z-index:9999;
+background:#7c3aed;
+color:white;
+border:0;
+padding:14px 20px;
+border-radius:12px;
+font-weight:800;
+font-size:15px;
+cursor:pointer;
+box-shadow:0 6px 20px rgba(0,0,0,.25);
+`;
+document.body.appendChild(addButton);
+
+/* PRODUCT FORM */
+const modal = document.createElement("div");
+modal.style.cssText = `
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.65);
+z-index:10000;
+align-items:center;
+justify-content:center;
+padding:20px;
+`;
+
+modal.innerHTML = `
+<div style="
+background:white;
+width:min(500px,100%);
+max-height:90vh;
+overflow:auto;
+border-radius:18px;
+padding:24px;
+box-shadow:0 20px 50px rgba(0,0,0,.35);
+font-family:Arial,sans-serif;
+">
+<h2 id="formTitle" style="margin-top:0;">➕ Add Product</h2>
+
+<label>Product Name</label>
+<input id="pName" type="text" placeholder="Example: Cute Tote Bag"
+style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
+
+<label>Price</label>
+<input id="pPrice" type="number" placeholder="299"
+style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
+
+<label>Category</label>
+<select id="pCat"
+style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;">
+<option value="fashion">Fashion</option>
+<option value="home">Home</option>
+<option value="beauty">Beauty</option>
+<option value="gadgets">Gadgets</option>
+<option value="kids">Kids</option>
+<option value="others">Others</option>
+</select>
+
+<label>Description</label>
+<textarea id="pDesc" rows="4" placeholder="Short product description..."
+style="width:100%;padding:12px;margin:6px 0 14px;box-sizing:border-box;"></textarea>
+
+<label>Product Image</label>
+<input id="pImage" type="file" accept="image/*"
+style="width:100%;margin:8px 0 14px;">
+
+<label>Product / Shopee Link</label>
+<input id="pUrl" type="url" placeholder="https://..."
+style="width:100%;padding:12px;margin:6px 0 20px;box-sizing:border-box;">
+
+<div style="display:flex;gap:10px;">
+<button id="saveProduct" style="
+flex:1;
+padding:13px;
+border:0;
+border-radius:10px;
+background:#7c3aed;
+color:white;
+font-weight:bold;
+cursor:pointer;">
+SAVE PRODUCT
+</button>
+
+<button id="cancelProduct" style="
+padding:13px 18px;
+border:0;
+border-radius:10px;
+background:#ddd;
+cursor:pointer;">
+CANCEL
+</button>
+</div>
+</div>
+`;
+
+document.body.appendChild(modal);
+
+let editingIndex = null;
+
+function saveProducts(){
+localStorage.setItem(
+"sulitSpotterProducts",
+JSON.stringify(products)
+);
+}
+
+function openForm(index=null){
+
+editingIndex = index;
+
+document.getElementById("formTitle").textContent =
+index === null ? "➕ Add Product" : "✏️ Edit Product";
+
+if(index !== null){
+const p = products[index];
+
+document.getElementById("pName").value = p.name || "";
+document.getElementById("pPrice").value = p.price || "";
+document.getElementById("pCat").value = p.cat || "others";
+document.getElementById("pDesc").value = p.description || "";
+document.getElementById("pUrl").value = p.url || "";
+}else{
+document.getElementById("pName").value = "";
+document.getElementById("pPrice").value = "";
+document.getElementById("pCat").value = "fashion";
+document.getElementById("pDesc").value = "";
+document.getElementById("pUrl").value = "";
+document.getElementById("pImage").value = "";
+}
+
+modal.style.display = "flex";
+}
+
+function closeForm(){
+modal.style.display = "none";
+editingIndex = null;
+}
+
+addButton.onclick = () => openForm();
+
+document.getElementById("cancelProduct").onclick = closeForm;
+
+document.getElementById("saveProduct").onclick = () => {
+
+const name = document.getElementById("pName").value.trim();
+const price = Number(document.getElementById("pPrice").value);
+const cat = document.getElementById("pCat").value;
+const description = document.getElementById("pDesc").value.trim();
+const url = document.getElementById("pUrl").value.trim();
+const imageFile = document.getElementById("pImage").files[0];
+
+if(!name || !price){
+alert("Please enter Product Name and Price.");
+return;
+}
+
+function finishSave(imageData){
+
+const productData = {
+name:name,
+price:price,
+rating:5,
+reviews:"New",
+cat:cat,
+emoji:"🛍️",
+badge:"NEW",
+score:"9.5/10",
+url:url || "#",
+description:description,
+image:imageData || (
+editingIndex !== null
+? products[editingIndex].image || ""
+: ""
+)
+};
+
+if(editingIndex === null){
+products.unshift(productData);
+}else{
+products[editingIndex] = productData;
+}
+
+saveProducts();
 render(products);
-document.querySelectorAll(".filter").forEach(btn=>btn.onclick=()=>{document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));btn.classList.add("active");let f=btn.dataset.filter;render(f==="all"?products:products.filter(p=>f==="under100"?p.price<100:f==="under300"?p.price<300:f==="rated"?p.rating>=4.8:p.cat===f));});
-document.getElementById("search").addEventListener("input",e=>{let q=e.target.value.toLowerCase();render(products.filter(p=>(p.name+" "+p.cat).toLowerCase().includes(q)));});
+closeForm();
+
+alert("✅ Product saved successfully!");
+
+}
+
+if(imageFile){
+
+const reader = new FileReader();
+
+reader.onload = function(e){
+finishSave(e.target.result);
+};
+
+reader.readAsDataURL(imageFile);
+
+}else{
+finishSave("");
+}
+
+};
+
+/* RENDER PRODUCTS */
+
+function render(list){
+
+root.innerHTML = list.map((p,index) => {
+
+const originalIndex = products.indexOf(p);
+
+return `
+<article class="product">
+
+<div class="ping">
+
+${p.image
+? `<img src="${p.image}" style="
+width:100%;
+height:190px;
+object-fit:cover;
+border-radius:12px;
+margin-bottom:10px;
+">`
+: `<div style="
+font-size:55px;
+text-align:center;
+padding:25px;
+">${p.emoji || "🛍️"}</div>`
+}
+
+<span class="badge">${p.badge || "SULIT PICK"}</span>
+
+</div>
+
+<h3>${p.name}</h3>
+
+<p style="font-size:14px;color:#666;">
+${p.description || "Sulit Spotter recommended product."}
+</p>
+
+<div style="font-size:20px;font-weight:800;">
+₱${Number(p.price).toLocaleString()}
+</div>
+
+<div style="margin:7px 0;">
+⭐ ${p.rating || 5}
+&nbsp; • &nbsp;
+${p.reviews || "New"}
+</div>
+
+<div style="display:flex;gap:7px;margin-top:10px;">
+
+<a href="${p.url || "#"}"
+target="_blank"
+style="
+flex:1;
+text-align:center;
+padding:9px;
+border-radius:8px;
+background:#111;
+color:white;
+text-decoration:none;
+">
+VIEW
+</a>
+
+<button onclick="editProduct(${originalIndex})"
+style="
+padding:9px 12px;
+border:0;
+border-radius:8px;
+cursor:pointer;
+">
+✏️
+</button>
+
+<button onclick="deleteProduct(${originalIndex})"
+style="
+padding:9px 12px;
+border:0;
+border-radius:8px;
+background:#fee2e2;
+cursor:pointer;
+">
+🗑️
+</button>
+
+</div>
+
+</article>
+`;
+
+}).join("");
+}
+
+function editProduct(index){
+openForm(index);
+}
+
+function deleteProduct(index){
+
+if(confirm("Delete this product?")){
+products.splice(index,1);
+saveProducts();
+render(products);
+}
+}
+
+/* CATEGORY FILTER */
+
+document.querySelectorAll(".filter").forEach(btn => {
+
+btn.onclick = () => {
+
+document.querySelectorAll(".filter").forEach(x =>
+x.classList.remove("active")
+);
+
+btn.classList.add("active");
+
+const filter = btn.dataset.filter;
+
+if(filter === "all"){
+render(products);
+}else{
+render(products.filter(p => p.cat === filter));
+}
+
+};
+
+});
+
+/* SEARCH */
+
+document.getElementById("search").addEventListener("input", e => {
+
+const q = e.target.value.toLowerCase();
+
+render(
+products.filter(p =>
+(p.name || "").toLowerCase().includes(q) ||
+(p.description || "").toLowerCase().includes(q)
+)
+);
+
+});
+
+render(products);
 </script>
 </body>
 </html>
